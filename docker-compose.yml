@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    container_name: maritime_postgres
+    environment:
+      POSTGRES_DB: maritime_tracking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - maritime_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: maritime_app
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: maritime_tracking
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      FLASK_ENV: production
+      DOCKER: "1"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./static/uploads:/app/static/uploads
+      - ./static/results:/app/static/results
+    restart: unless-stopped
+    networks:
+      - maritime_network
+
+networks:
+  maritime_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

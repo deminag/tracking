@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object Tracking</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .blocks-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .block {
+            background: white;
+            padding: 20px;
+            border-radius: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .block-1 {
+            width: 100%;
+            max-width: 600px;
+        }
+        .block-2 {
+            flex: 1;
+            min-width: 400px;
+        }
+        .block-3 {
+            width: 100%;
+            min-height: 200px;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ccc;
+            border-radius: 0;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .file-input-wrapper {
+            position: relative;
+        }
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .file-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+            border: 2px solid #ccc;
+            border-radius: 0;
+            color: #666;
+            text-align: center;
+            transition: border-color 0.3s, background 0.3s;
+            font-size: 14px;
+        }
+        .file-label:hover {
+            background: #fafafa;
+        }
+        .file-label.active {
+            background: #f0f9f0;
+        }
+        .progress-container {
+            display: none;
+            margin-top: 15px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #e0e0e0;
+            border-radius: 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .video-container {
+            margin-top: 15px;
+        }
+        .video-container video {
+            width: 100%;
+            max-height: 300px;
+            border-radius: 0;
+            background: #000;
+        }
+        .video-label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .metric-item {
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 0;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #000;
+        }
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .placeholder {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            background: #f5f5f5;
+            border-radius: 0;
+        }
+        .track-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .track-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 0;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+        .track-item-id {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .track-item-lifetime {
+            color: #666;
+        }
+        .db-status {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .db-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 0;
+        }
+        .db-label {
+            font-weight: bold;
+            color: #333;
+        }
+        .db-value {
+            color: #4CAF50;
+        }
+        .session-item {
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 0;
+            margin-bottom: 8px;
+        }
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .session-video {
+            color: #333;
+        }
+        .session-date {
+            color: #666;
+            font-size: 12px;
+        }
+        .session-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="blocks-container">
+        <div class="block block-1">
+            <h3 style="text-align: left; margin-bottom: 10px; color: #333; font-size: 14px;">Выбор модели</h3>
+            <div class="form-group">
+                <div class="model-buttons" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <label style="flex: 1; min-width: 120px;">
+                        <input type="radio" name="model" value="yolo8x" style="margin-right: 5px;" checked>YOLOv8x
+                    </label>
+                    <label style="flex: 1; min-width: 120px;">
+                        <input type="radio" name="model" value="yolo26x" style="margin-right: 5px;">YOLOv26x
+                    </label>
+                    <label style="flex: 1; min-width: 120px;">
+                        <input type="radio" name="model" value="rtdetr-x" style="margin-right: 5px;">RT-DETR-X
+                    </label>
+                    <label style="flex: 1; min-width: 120px;">
+                        <input type="radio" name="model" value="rtdetr-l" style="margin-right: 5px;">RT-DETR-L
+                    </label>
+                </div>
+            </div>
+
+            <h3 style="text-align: left; margin: 10px 0 15px 0; color: #333; font-size: 14px;">Выбор девайса</h3>
+            <div class="form-group">
+                <div class="device-buttons" style="display: flex; gap: 5px;">
+                    <label style="flex: 1;">
+                        <input type="radio" name="device" value="cpu" style="margin-right: 5px;" checked>CPU
+                    </label>
+                    <label style="flex: 3;">
+                        <input type="radio" name="device" value="cuda" style="margin-right: 5px;">CUDA
+                    </label>
+                </div>
+            </div>
+
+            <h3 style="text-align: left; margin: 10px 0 15px 0; color: #333; font-size: 14px;">Параметры Bytetrack</h3>
+            <div class="form-group">
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 12px; color: #666;">track_thresh</label>
+                        <input type="number" name="track_thresh" value="0.4" step="0.1" min="0" max="1" style="width: 100%; padding: 8px; border: 1px solid #ccc;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 12px; color: #666;">match_thresh</label>
+                        <input type="number" name="match_thresh" value="0.8" step="0.1" min="0" max="1" style="width: 100%; padding: 8px; border: 1px solid #ccc;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 12px; color: #666;">track_buffer</label>
+                        <input type="number" name="track_buffer" value="190" step="1" min="1" style="width: 100%; padding: 8px; border: 1px solid #ccc;">
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="text-align: left; margin: 10px 0 15px 0; color: #333; font-size: 14px;">Параметры FK</h3>
+            <div class="form-group">
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 12px; color: #666;">KF Process Noise (Q)</label>
+                        <input type="number" name="kf_q" value="0.025" step="0.005" min="0" max="1" style="width: 100%; padding: 8px; border: 1px solid #ccc;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 12px; color: #666;">KF Measurement Noise (R)</label>
+                        <input type="number" name="kf_r" value="0.1" step="0.01" min="0" max="1" style="width: 100%; padding: 8px; border: 1px solid #ccc;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 12px; color: #666;">KF Initial Covariance (P)</label>
+                        <input type="number" name="kf_p" value="10.0" step="1" min="0" max="100" style="width: 100%; padding: 8px; border: 1px solid #ccc;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="file-input-wrapper">
+                    <input type="file" id="videoInput" accept="video/*">
+                    <div class="file-label" id="fileLabel">
+                        Загрузить видео
+                    </div>
+                </div>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="video-container" id="originalVideo">
+            </div>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="block block-2">
+            <div class="video-container">
+                <div id="resultVideo"></div>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric-item">
+                    <div class="metric-value" id="trackCount">0</div>
+                    <div class="metric-label">Количество уникальных треков</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="frameCount">0</div>
+                    <div class="metric-label">Кадров</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="processingFps">0</div>
+                    <div class="metric-label">FPS (обработка)</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="videoFps">0</div>
+                    <div class="metric-label">FPS (видео)</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="detections">0</div>
+                    <div class="metric-label">Количество срабатываний детектора</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="avgConfidence">0</div>
+                    <div class="metric-label">Средняя уверенность</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="bboxStability">0</div>
+                    <div class="metric-label">Стабильность BB</div>
+                </div>
+
+            </div>
+            
+        </div>
+
+        <div class="block block-3">
+            <div class="db-content" id="dbContent">
+                <div class="sessions-list" id="sessionsList">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const videoInput = document.getElementById('videoInput');
+        const fileLabel = document.getElementById('fileLabel');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const error = document.getElementById('error');
+        const originalVideo = document.getElementById('originalVideo');
+        const resultVideo = document.getElementById('resultVideo');
+
+        let selectedFile = null;
+        let eventSource = null;
+
+        videoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                selectedFile = file;
+                fileLabel.textContent = 'Выбрано: ' + file.name;
+                fileLabel.classList.add('active');
+                
+                const videoUrl = URL.createObjectURL(file);
+                originalVideo.innerHTML = '<video controls src="' + videoUrl + '"></video>';
+                
+                uploadVideo();
+            }
+        });
+
+        async function uploadVideo() {
+            if (!selectedFile) {
+                error.textContent = 'Выберите видео файл';
+                return;
+            }
+
+            error.textContent = '';
+            resultVideo.innerHTML = '';
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressFill.textContent = '0%';
+
+            const formData = new FormData();
+            formData.append('video', selectedFile);
+            const modelEl = document.querySelector('input[name="model"]:checked');
+            formData.append('model', modelEl ? modelEl.value : 'yolo8x');
+            const deviceEl = document.querySelector('input[name="device"]:checked');
+            formData.append('device', deviceEl ? deviceEl.value : 'cpu');
+            formData.append('track_thresh', document.querySelector('input[name="track_thresh"]').value);
+            formData.append('match_thresh', document.querySelector('input[name="match_thresh"]').value);
+            formData.append('track_buffer', document.querySelector('input[name="track_buffer"]').value);
+            formData.append('kf_q', document.querySelector('input[name="kf_q"]').value);
+            formData.append('kf_r', document.querySelector('input[name="kf_r"]').value);
+            formData.append('kf_p', document.querySelector('input[name="kf_p"]').value);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                console.log('upload response:', data);
+
+                if (data.success) {
+                    startProgressPolling(data.task_id);
+                } else {
+                    error.textContent = data.error || 'Ошибка';
+                    progressContainer.style.display = 'none';
+                }
+            } catch (err) {
+                error.textContent = 'Ошибка: ' + err.message;
+                progressContainer.style.display = 'none';
+            }
+        }
+
+        function startProgressPolling(taskId) {
+            eventSource = new EventSource('/progress/' + taskId);
+
+            eventSource.onmessage = function(e) {
+                const data = e.data;
+
+                if (data === 'error') {
+                    stopProgressPolling();
+                    return;
+                }
+
+                if (data === 'complete') {
+                    progressFill.style.width = '100%';
+                    progressFill.textContent = '100%';
+                    
+                    fetch('/get-result/' + taskId)
+                        .then(res => res.json())
+                        .then(data => {
+                            console.log('get-result response:', data);
+                            if (data.result_video) {
+                                resultVideo.innerHTML = '<video controls src="' + data.result_video + '"></video>';
+                            }
+                            if (data.metrics) {
+                                document.getElementById('trackCount').textContent = data.metrics.objects || 0;
+                                document.getElementById('frameCount').textContent = data.metrics.frames || 0;
+                                document.getElementById('processingFps').textContent = data.metrics.processing_fps || 0;
+                                document.getElementById('videoFps').textContent = data.metrics.video_fps || 0;
+                                document.getElementById('detections').textContent = data.metrics.detections || 0;
+                                document.getElementById('avgConfidence').textContent = data.metrics.avg_confidence || 0;
+                                document.getElementById('bboxStability').textContent = data.metrics.bbox_stability || 0;
+
+                            }
+                        });
+                    stopProgressPolling();
+                    return;
+                }
+
+                const percent = parseInt(data);
+                progressFill.style.width = percent + '%';
+                progressFill.textContent = percent + '%';
+            };
+
+            eventSource.onerror = function() {
+                stopProgressPolling();
+            };
+        }
+
+        function stopProgressPolling() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        }
+
+        const sessionsList = document.getElementById('sessionsList');
+
+        async function loadDbSessions() {
+            try {
+                const response = await fetch('/api/sessions');
+                const data = await response.json();
+                
+                if (data.success && data.sessions && data.sessions.length > 0) {
+                    let html = '';
+                    data.sessions.forEach(s => {
+                        html += '<div class="session-item">' +
+                            '<div class="session-header"><span class="session-video">' + s.video_name + '</span></div>' +
+                            '<div class="session-date">' + s.completed_at + '</div>' +
+                            '<div class="session-stats">Кадров: ' + s.frames + ' | Треков: ' + s.objects + ' | FPS: ' + s.fps + ' | Conf: ' + s.avg_confidence + ' | BB Stab: ' + s.bbox_stability + '</div>' +
+                            '<div class="session-stats" style="font-size: 11px; color: #888;">Thresh: ' + (s.track_thresh || 'N/A') + ' | Match: ' + (s.match_thresh || 'N/A') + ' | Buffer: ' + (s.track_buffer || 'N/A') + '</div>' +
+                            '<div class="session-stats" style="font-size: 10px; color: #999;">KF: Q=' + (s.kf_q || 'N/A') + ' R=' + (s.kf_r || 'N/A') + ' P=' + (s.kf_p || 'N/A') + '</div>' +
+                        '</div>';
+                    });
+                    sessionsList.innerHTML = html;
+                } else {
+                    sessionsList.innerHTML = 'Нет данных в БД';
+                }
+            } catch (err) {
+                sessionsList.innerHTML = 'Ошибка подключения: ' + err.message;
+            }
+        }
+
+        loadDbSessions();
+        setInterval(loadDbSessions, 5000);
+    </script>
+</body>
+</html>
