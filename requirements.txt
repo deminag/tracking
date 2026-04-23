@@ -1,0 +1,6 @@
+flask
+numpy
+opencv_python
+psycopg2-binary
+ultralytics
+werkzeug
