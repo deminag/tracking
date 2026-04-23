@@ -81,9 +81,8 @@ docker-compose up --build -d # Запуск в фоновом режиме
 docker-compose logs -f       # Просмотр логов
 docker-compose down          # Остановка
 
-[Загрузите обученные модели и переместите в папку weights](https://drive.google.com/drive/folders/1__8Ykc9DKQ0WF4X8zYcI5geYlS0uaenT?usp=sharing) 
-
 ```
+[Загрузите обученные модели и переместите в папку weights](https://drive.google.com/drive/folders/1__8Ykc9DKQ0WF4X8zYcI5geYlS0uaenT?usp=sharing) 
 
 Приложение будет доступно: `http://localhost:5000`
 
